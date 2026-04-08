@@ -1,0 +1,198 @@
+How the Bulk Auto-Fill works:
+Browser Memory: It uses localStorage, meaning the app "remembers" your business name and name even if you close the tab and come back later.
+
+Dynamic Variables: In the openDoc function, it automatically looks at the userProfile object. If you've saved a company name, it sets that as the value for the input field immediately.
+One-Time Setup: You click the "Edit Profile" button once, fill out your details, and they are instantly available for every single Agreement in the hub.
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Prompt Hub & Office Auto-Fill</title>
+<style>
+  :root {
+    --bg: #0d0d1a;
+    --surface: #13132b;
+    --surface2: #1a1a35;
+    --accent: #7c3aed;
+    --accent2: #a855f7;
+    --accent3: #06b6d4;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --border: rgba(124,58,237,0.25);
+    --card-bg: #16163a;
+    --radius: 14px;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; }
+  header {
+    background: rgba(13, 13, 26, 0.8); border-bottom: 1px solid var(--border);
+    padding: 0 2rem; position: sticky; top: 0; z-index: 1000;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 70px; backdrop-filter: blur(10px);
+  }
+  .logo { font-size: 1.5rem; font-weight: 800; background: linear-gradient(90deg, #a855f7, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  
+  .view { display: none; padding: 2rem; max-width: 1200px; margin: 0 auto; }
+  .view.active { display: block; }
+
+  /* ── AUTO-FILL PROFILE BAR ── */
+  .profile-bar {
+    background: linear-gradient(90deg, var(--surface2), var(--surface));
+    padding: 1rem 2rem; border-radius: var(--radius); border: 1px solid var(--border);
+    margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between;
+  }
+
+  /* ── GRID ── */
+  .template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.5rem; }
+  .file-card { 
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1.5rem; text-align: center; cursor: pointer; transition: 0.3s;
+  }
+  .file-card:hover { border-color: var(--accent); transform: translateY(-5px); }
+
+  /* ── SIDEBAR ── */
+  .editor-overlay { 
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); 
+    z-index: 2000; align-items: center; justify-content: flex-end; 
+  }
+  .editor-panel { 
+    background: var(--surface); width: 100%; max-width: 450px; height: 100%; 
+    padding: 2.5rem; border-left: 2px solid var(--border); overflow-y: auto;
+  }
+  
+  .btn-accent { background: var(--accent); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 8px; font-weight: 700; cursor: pointer; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: white; padding: 0.8rem 1.5rem; border-radius: 8px; cursor: pointer; }
+  
+  input { width: 100%; background: var(--bg); border: 1px solid var(--border); padding: 0.8rem; border-radius: 8px; color: white; margin-top: 5px; }
+  label { font-size: 0.8rem; color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⚡ AI Prompt Hub</div>
+  <nav>
+    <button class="btn-outline" onclick="showView('prompts')">Prompts</button>
+    <button class="btn-accent" onclick="showView('templates')">Templates</button>
+  </nav>
+</header>
+
+<div id="view-templates" class="view active">
+  <div class="profile-bar">
+    <div>
+      <h3 style="margin:0">Office Profile</h3>
+      <p style="margin:0; font-size: 0.8rem; color: var(--text-muted)">Set your details once to auto-fill every document.</p>
+    </div>
+    <button class="btn-outline" onclick="openProfile()">⚙️ Edit Profile</button>
+  </div>
+
+  <div class="template-grid" id="templateGrid"></div>
+</div>
+
+<div class="editor-overlay" id="profileModal" style="justify-content: center;">
+    <div class="editor-panel" style="height: auto; border-radius: 20px; border: 1px solid var(--border);">
+        <h2>Global Profile Settings</h2>
+        <div style="margin-bottom: 1rem;">
+            <label>My Company Name</label>
+            <input type="text" id="prof-company" placeholder="e.g. Acme Corp">
+        </div>
+        <div style="margin-bottom: 1rem;">
+            <label>My Full Name/Title</label>
+            <input type="text" id="prof-name" placeholder="e.g. John Doe - CEO">
+        </div>
+        <div style="margin-bottom: 1rem;">
+            <label>Business Address</label>
+            <input type="text" id="prof-address" placeholder="123 Business Way, NY">
+        </div>
+        <button class="btn-accent" style="width:100%" onclick="saveProfile()">Save & Auto-Apply</button>
+    </div>
+</div>
+
+<div class="editor-overlay" id="editorOverlay">
+  <div class="editor-panel">
+    <button class="btn-outline" onclick="closeEditor()">✕ Close</button>
+    <h2 id="editTitle">Document</h2>
+    <hr style="border: 0; border-top: 1px solid var(--border); margin: 1.5rem 0;">
+    
+    <div id="dynamicFields">
+        </div>
+
+    <button class="btn-accent" style="width:100%; margin-top: 2rem;" onclick="generateDoc()">Download PDF</button>
+  </div>
+</div>
+
+<script>
+// SAVED USER PROFILE
+let userProfile = {
+    company: "",
+    name: "",
+    address: ""
+};
+
+const DOCUMENTS = [
+  { name: "Agreement for Reseller", icon: "🤝", type: "Business" },
+  { name: "Consultant Agreement", icon: "📋", type: "Legal" },
+  { name: "Asset Purchase", icon: "🏛️", type: "Legal" },
+  { name: "Credit Agreement", icon: "💳", type: "Finance" }
+];
+
+function buildGrid() {
+  document.getElementById('templateGrid').innerHTML = DOCUMENTS.map(doc => `
+    <div class="file-card" onclick="openDoc('${doc.name}')">
+      <div style="font-size: 3rem; margin-bottom: 1rem;">${doc.icon}</div>
+      <div class="file-name">${doc.name}</div>
+      <div style="color: var(--accent3); font-size: 0.7rem; font-weight: 800;">${doc.type}</div>
+    </div>
+  `).join('');
+}
+
+function openDoc(name) {
+    document.getElementById('editTitle').innerText = name;
+    const fields = document.getElementById('dynamicFields');
+    
+    // AUTO-FILL LOGIC: If profile exists, use it as default values
+    fields.innerHTML = `
+        <div style="margin-bottom: 1rem;">
+            <label>Today's Date</label>
+            <input type="date" value="${new Date().toISOString().split('T')[0]}">
+        </div>
+        <div style="margin-bottom: 1rem;">
+            <label>Your Company (Auto-filled)</label>
+            <input type="text" id="field-comp" value="${userProfile.company}">
+        </div>
+        <div style="margin-bottom: 1rem;">
+            <label>Client Name</label>
+            <input type="text" placeholder="Enter client name">
+        </div>
+    `;
+    document.getElementById('editorOverlay').classList.add('open');
+}
+
+function openProfile() { document.getElementById('profileModal').style.display = 'flex'; }
+
+function saveProfile() {
+    userProfile.company = document.getElementById('prof-company').value;
+    userProfile.name = document.getElementById('prof-name').value;
+    userProfile.address = document.getElementById('prof-address').value;
+    localStorage.setItem('officeProfile', JSON.stringify(userProfile));
+    document.getElementById('profileModal').style.display = 'none';
+    alert("Profile Saved! All future documents will be auto-filled.");
+}
+
+function closeEditor() { document.getElementById('editorOverlay').classList.remove('open'); }
+
+function showView(view) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + view).classList.add('active');
+}
+
+window.onload = () => {
+    buildGrid();
+    const saved = localStorage.getItem('officeProfile');
+    if(saved) userProfile = JSON.parse(saved);
+};
+</script>
+</body>
+</html>

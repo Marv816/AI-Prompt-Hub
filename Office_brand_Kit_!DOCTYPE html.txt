@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Prompt Hub | Office & Brand Kit</title>
+<style>
+  :root {
+    --bg: #0d0d1a;
+    --surface: #13132b;
+    --surface2: #1a1a35;
+    --accent: #7c3aed;
+    --accent2: #a855f7;
+    --accent3: #06b6d4;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --border: rgba(124,58,237,0.25);
+    --radius: 14px;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; }
+  header {
+    background: rgba(13, 13, 26, 0.9); border-bottom: 1px solid var(--border);
+    padding: 0 2rem; position: sticky; top: 0; z-index: 1000;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 70px; backdrop-filter: blur(10px);
+  }
+  .logo-text { font-size: 1.5rem; font-weight: 800; background: linear-gradient(90deg, #a855f7, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  
+  .view { display: none; padding: 2rem; max-width: 1200px; margin: 0 auto; }
+  .view.active { display: block; }
+
+  /* ── BRAND BAR ── */
+  .brand-bar {
+    background: linear-gradient(135deg, var(--surface2), var(--surface));
+    padding: 1.5rem 2rem; border-radius: var(--radius); border: 1px solid var(--border);
+    margin-bottom: 2rem; display: grid; grid-template-columns: auto 1fr auto; gap: 2rem; align-items: center;
+  }
+  .logo-preview-box {
+    width: 80px; height: 80px; background: var(--bg); border: 2px dashed var(--border);
+    border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  .logo-preview-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+  /* ── SEARCH BAR ── */
+  .search-container { margin-bottom: 2rem; position: relative; }
+  .template-search {
+    width: 100%; background: var(--surface); border: 2px solid var(--border);
+    padding: 1rem 1.5rem; border-radius: 12px; color: white; font-size: 1rem;
+    outline: none; transition: 0.3s;
+  }
+  .template-search:focus { border-color: var(--accent3); box-shadow: 0 0 15px rgba(6, 182, 212, 0.2); }
+
+  /* ── GRID ── */
+  .template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.5rem; }
+  .file-card { 
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1.5rem; text-align: center; cursor: pointer; transition: 0.3s;
+  }
+  .file-card:hover { border-color: var(--accent); transform: translateY(-5px); }
+  .file-card.hidden { display: none; }
+
+  /* ── OVERLAYS ── */
+  .editor-overlay { 
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); 
+    z-index: 2000; align-items: center; justify-content: center; 
+  }
+  .editor-panel { 
+    background: var(--surface); width: 90%; max-width: 500px; max-height: 90vh; 
+    padding: 2.5rem; border-radius: 20px; border: 1px solid var(--border); overflow-y: auto;
+  }
+  
+  .btn-accent { background: var(--accent); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 8px; font-weight: 700; cursor: pointer; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: white; padding: 0.8rem 1.5rem; border-radius: 8px; cursor: pointer; }
+  
+  input, textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); padding: 0.8rem; border-radius: 8px; color: white; margin-top: 5px; }
+  label { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-text">⚡ AI Prompt Hub</div>
+  <nav style="display: flex; gap: 0.5rem;">
+    <button class="btn-outline" onclick="showView('prompts')">AI Prompts</button>
+    <button class="btn-accent" onclick="showView('templates')">Office Kit</button>
+  </nav>
+</header>
+
+<div id="view-templates" class="view active">
+  <div class="brand-bar">
+    <div class="logo-preview-box" id="logoDisplay"><span>Logo</span></div>
+    <div>
+      <h3 style="margin:0" id="displayCompany">Your Company</h3>
+      <p style="margin:0; font-size: 0.85rem; color: var(--text-muted)">Brand Kit & Office Manager</p>
+    </div>
+    <button class="btn-outline" onclick="openProfile()">⚙️ Brand Settings</button>
+  </div>
+
+  <div class="search-container">
+    <input type="text" class="template-search" id="templateSearch" placeholder="🔍 Search through agreements and office tools..." onkeyup="filterTemplates()">
+  </div>
+
+  <div class="template-grid" id="templateGrid"></div>
+</div>
+
+<div class="editor-overlay" id="profileModal">
+    <div class="editor-panel">
+        <h2>Brand Kit</h2>
+        <div style="margin-bottom: 1.5rem;">
+            <label>Business Logo</label>
+            <input type="file" id="logoInput" accept="image/*" onchange="handleLogo(event)">
+        </div>
+        <div style="margin-bottom: 1.2rem;">
+            <label>Business Name</label>
+            <input type="text" id="prof-company" placeholder="e.g. Acme Corp">
+        </div>
+        <div style="margin-bottom: 1.2rem;">
+            <label>Industry</label>
+            <input type="text" id="prof-niche" placeholder="e.g. Tech">
+        </div>
+        <button class="btn-accent" style="width:100%" onclick="saveProfile()">Save Settings</button>
+        <button class="btn-outline" style="width:100%; margin-top: 1rem;" onclick="document.getElementById('profileModal').style.display='none'">Close</button>
+    </div>
+</div>
+
+<div class="editor-overlay" id="editorOverlay">
+  <div class="editor-panel" style="margin-right: 0; height: 100%; border-radius: 0; position: absolute; right: 0;">
+    <h2 id="editTitle">Document</h2>
+    <div id="dynamicFields"></div>
+    <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+        <button class="btn-accent" style="flex:1">Generate</button>
+        <button class="btn-outline" onclick="document.getElementById('editorOverlay').style.display='none'">Back</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let userProfile = { company: "Your Company", niche: "Business", logo: null };
+
+// COMPREHENSIVE LIST FROM YOUR OFFICE DRIVE
+const DOCUMENTS = [
+  { name: "Logo Identity Prompt", icon: "🎨", type: "AI Tool" },
+  { name: "Agreement for Reseller", icon: "🤝", type: "Legal" },
+  { name: "Consultant Agreement", icon: "📋", type: "Legal" },
+  { name: "Asset Purchase Agreement", icon: "🏛️", type: "Finance" },
+  { name: "Bulk Sale Agreement", icon: "📦", type: "Sales" },
+  { name: "Consulting Agreement Independent Contractor", icon: "💼", type: "Legal" },
+  { name: "Credit Agreement", icon: "💳", type: "Finance" },
+  { name: "Sponsorship Agreement", icon: "✨", type: "Marketing" },
+  { name: "Sale of Goods Contract", icon: "🏷️", type: "Retail" },
+  { name: "Supply Agreement", icon: "🚛", type: "Logistics" }
+];
+
+function buildGrid() {
+  document.getElementById('templateGrid').innerHTML = DOCUMENTS.map(doc => `
+    <div class="file-card" data-name="${doc.name.toLowerCase()}" onclick="openDoc('${doc.name}')">
+      <div style="font-size: 3rem; margin-bottom: 1rem;">${doc.icon}</div>
+      <div class="file-name">${doc.name}</div>
+      <div style="color: var(--accent3); font-size: 0.7rem; font-weight: 800; text-transform: uppercase;">${doc.type}</div>
+    </div>
+  `).join('');
+}
+
+// SEARCH FILTER LOGIC
+function filterTemplates() {
+    const query = document.getElementById('templateSearch').value.toLowerCase();
+    const cards = document.querySelectorAll('.file-card');
+    cards.forEach(card => {
+        const name = card.getAttribute('data-name');
+        if(name.includes(query)) {
+            card.classList.remove('hidden');
+        } else {
+            card.classList.add('hidden');
+        }
+    });
+}
+
+function openDoc(name) {
+    document.getElementById('editTitle').innerText = name;
+    document.getElementById('editorOverlay').style.display = 'flex';
+}
+
+function handleLogo(e) {
+    const reader = new FileReader();
+    reader.onload = function() {
+        userProfile.logo = reader.result;
+        document.getElementById('logoDisplay').innerHTML = `<img src="${reader.result}">`;
+    }
+    reader.readAsDataURL(e.target.files[0]);
+}
+
+function openProfile() { document.getElementById('profileModal').style.display = 'flex'; }
+
+function saveProfile() {
+    userProfile.company = document.getElementById('prof-company').value;
+    userProfile.niche = document.getElementById('prof-niche').value;
+    document.getElementById('displayCompany').innerText = userProfile.company;
+    localStorage.setItem('officeProfile', JSON.stringify(userProfile));
+    document.getElementById('profileModal').style.display = 'none';
+}
+
+function showView(view) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + view).classList.add('active');
+}
+
+window.onload = () => {
+    buildGrid();
+    const saved = localStorage.getItem('officeProfile');
+    if(saved) {
+        userProfile = JSON.parse(saved);
+        document.getElementById('displayCompany').innerText = userProfile.company;
+        if(userProfile.logo) document.getElementById('logoDisplay').innerHTML = `<img src="${userProfile.logo}">`;
+    }
+};
+</script>
+</body>
+</html>

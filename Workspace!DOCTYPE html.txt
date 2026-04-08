@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Prompt Hub | Workspace & Office Kit</title>
+<style>
+  :root {
+    --bg: #0d0d1a;
+    --surface: #13132b;
+    --surface2: #1a1a35;
+    --accent: #7c3aed;
+    --accent2: #a855f7;
+    --accent3: #06b6d4;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --border: rgba(124,58,237,0.25);
+    --radius: 14px;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; overflow-x: hidden; }
+  header {
+    background: rgba(13, 13, 26, 0.95); border-bottom: 1px solid var(--border);
+    padding: 0 2rem; position: sticky; top: 0; z-index: 1000;
+    display: flex; align-items: center; justify-content: space-between; height: 70px; backdrop-filter: blur(10px);
+  }
+  .logo-text { font-size: 1.5rem; font-weight: 800; background: linear-gradient(90deg, #a855f7, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; cursor: pointer; }
+  
+  nav { display: flex; gap: 0.5rem; }
+  .view { display: none; padding: 2rem; max-width: 1200px; margin: 0 auto; min-height: 80vh; }
+  .view.active { display: block; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  /* ── COMPONENTS ── */
+  .template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.5rem; }
+  .file-card { 
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1.5rem; text-align: center; cursor: pointer; transition: 0.3s;
+  }
+  .file-card:hover { border-color: var(--accent); transform: translateY(-3px); }
+
+  /* ── WORKSPACE LIST ── */
+  .workspace-item {
+    background: var(--surface); padding: 1rem 1.5rem; border-radius: 12px; border: 1px solid var(--border);
+    margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;
+  }
+
+  /* ── UI ELEMENTS ── */
+  .btn-accent { background: var(--accent); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+  .btn-accent:hover { opacity: 0.9; transform: scale(1.02); }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: white; padding: 0.8rem 1.5rem; border-radius: 8px; cursor: pointer; }
+  
+  input, textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); padding: 0.8rem; border-radius: 8px; color: white; margin-top: 5px; box-sizing: border-box; }
+  
+  /* ── OVERLAYS ── */
+  .editor-overlay { 
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); 
+    z-index: 2000; align-items: center; justify-content: flex-end; 
+  }
+  .editor-panel { 
+    background: var(--surface); width: 100%; max-width: 450px; height: 100%; 
+    padding: 2.5rem; border-left: 2px solid var(--border); overflow-y: auto;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-text" onclick="showView('prompts')">⚡ AI Prompt Hub</div>
+  <nav>
+    <button class="btn-outline" id="nav-prompts" onclick="showView('prompts')">Prompts</button>
+    <button class="btn-outline" id="nav-templates" onclick="showView('templates')">Office Kit</button>
+    <button class="btn-outline" id="nav-workspace" onclick="showView('workspace')">📁 Workspace</button>
+  </nav>
+</header>
+
+<div id="view-templates" class="view active">
+  <h2 style="margin-bottom: 1.5rem;">Business Templates</h2>
+  <div class="template-grid" id="templateGrid"></div>
+</div>
+
+<div id="view-workspace" class="view">
+  <h1>My Workspace</h1>
+  <p style="color: var(--text-muted)">Your saved documents and prompts (Stored locally in your browser).</p>
+  <div id="workspaceList" style="margin-top: 2rem;">
+    </div>
+</div>
+
+<div class="editor-overlay" id="editorOverlay">
+  <div class="editor-panel">
+    <button class="btn-outline" onclick="closeEditor()">✕ Close</button>
+    <h2 id="editTitle">Document</h2>
+    
+    <div id="dynamicFields">
+        <div style="margin-bottom: 1.5rem;">
+            <label>Client/Project Name</label>
+            <input type="text" id="work-title" placeholder="e.g. Q2 Supply Contract">
+        </div>
+        <div style="margin-bottom: 1.5rem;">
+            <label>Content / Draft</label>
+            <textarea id="work-content" style="height: 300px;" placeholder="Document content goes here..."></textarea>
+        </div>
+    </div>
+
+    <div style="display: grid; gap: 10px;">
+        <button class="btn-accent" onclick="downloadDoc()">💾 Download as .DOC</button>
+        <button class="btn-outline" onclick="saveToWorkspace()" style="border-color: var(--accent3); color: var(--accent3);">⭐ Save to Workspace</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let workspace = [];
+
+const DOCUMENTS = [
+  { name: "Agreement for Reseller", icon: "🤝", type: "Legal" },
+  { name: "Consultant Agreement", icon: "📋", type: "Legal" },
+  { name: "Asset Purchase Agreement", icon: "🏛️", type: "Finance" },
+  { name: "Sponsorship Agreement", icon: "✨", type: "Marketing" }
+];
+
+function buildGrid() {
+  document.getElementById('templateGrid').innerHTML = DOCUMENTS.map(doc => `
+    <div class="file-card" onclick="openDoc('${doc.name}')">
+      <div style="font-size: 3rem; margin-bottom: 1rem;">${doc.icon}</div>
+      <div class="file-name">${doc.name}</div>
+      <div style="color: var(--accent3); font-size: 0.7rem; font-weight: 800;">${doc.type}</div>
+    </div>
+  `).join('');
+}
+
+function openDoc(name) {
+    document.getElementById('editTitle').innerText = name;
+    document.getElementById('work-title').value = name + " Draft";
+    document.getElementById('work-content').value = `Agreement for: ${name}\nDate: ${new Date().toLocaleDateString()}\n\n[Your content will be generated here]`;
+    document.getElementById('editorOverlay').style.display = 'flex';
+}
+
+// ── SAVE TO WORKSPACE (LOCALSTORAGE) ──
+function saveToWorkspace() {
+    const item = {
+        id: Date.now(),
+        title: document.getElementById('work-title').value,
+        content: document.getElementById('work-content').value,
+        date: new Date().toLocaleDateString()
+    };
+    workspace.push(item);
+    localStorage.setItem('userWorkspace', JSON.stringify(workspace));
+    renderWorkspace();
+    alert("Saved to your personal workspace!");
+}
+
+function renderWorkspace() {
+    const list = document.getElementById('workspaceList');
+    if (workspace.length === 0) {
+        list.innerHTML = `<p style="text-align:center; padding: 3rem; border: 1px dashed var(--border); border-radius: 12px;">No saved items yet.</p>`;
+        return;
+    }
+    list.innerHTML = workspace.map(item => `
+        <div class="workspace-item">
+            <div>
+                <div style="font-weight:700;">${item.title}</div>
+                <div style="font-size:0.8rem; color:var(--text-muted)">Saved on ${item.date}</div>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-outline" style="padding: 0.4rem 0.8rem;" onclick="loadFromWorkspace(${item.id})">Open</button>
+                <button class="btn-outline" style="padding: 0.4rem 0.8rem; color: #ff4d4d;" onclick="deleteFromWorkspace(${item.id})">Delete</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// ── DOWNLOAD FUNCTION (GENERATES REAL FILE) ──
+function downloadDoc() {
+    const title = document.getElementById('work-title').value;
+    const text = document.getElementById('work-content').value;
+    const blob = new Blob([text], { type: 'application/msword' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = title + ".doc";
+    link.click();
+}
+
+function loadFromWorkspace(id) {
+    const item = workspace.find(i => i.id === id);
+    document.getElementById('editTitle').innerText = "Edit Saved Work";
+    document.getElementById('work-title').value = item.title;
+    document.getElementById('work-content').value = item.content;
+    document.getElementById('editorOverlay').style.display = 'flex';
+}
+
+function deleteFromWorkspace(id) {
+    workspace = workspace.filter(i => i.id !== id);
+    localStorage.setItem('userWorkspace', JSON.stringify(workspace));
+    renderWorkspace();
+}
+
+function showView(view) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.btn-outline').forEach(b => b.classList.remove('btn-accent'));
+    document.getElementById('view-' + view).classList.add('active');
+}
+
+function closeEditor() { document.getElementById('editorOverlay').style.display = 'none'; }
+
+window.onload = () => {
+    buildGrid();
+    const saved = localStorage.getItem('userWorkspace');
+    if(saved) workspace = JSON.parse(saved);
+    renderWorkspace();
+};
+</script>
+</body>
+</html>
